@@ -47,8 +47,6 @@ archives = [
   "build-arm-driver.py NativeUfs",
   "build-arm-driver.py NativeVirtioBlock",
   "build-arm-driver.py NativeRamBlock",
-  "build-native-virtio-bindings.py --component NativeRamBlock --directory build/native-ram-block",
-  "build-native-virtio-bindings.py --component NativeVirtioBlock",
   "build-mockfs-fixture.py",
   "build-sheng-platform-power.py",
   "build-boot-progress.py",
