@@ -62,9 +62,7 @@ archives = [
   "build-native-virtio-bindings.py --component NativeRamBlock --directory build/native-ram-block",
   "build-native-virtio-bindings.py --component NativeVirtioBlock",
   "build-mockfs-fixture.py",
-  "build-boot-progress.py",
   "build-libpthread-kernel.py",
-  "build-native-legacy-display.py",
 ]
 
 [kernel.prelink]
@@ -136,6 +134,15 @@ DEVICE_MODEL = "gts9uwifi"
 MEMORY_PROTECTION = "TRUE"
 SHIP_MODE = "FALSE"
 BUILDID_STRING = "gts9uwifi-research"
+# The gts9uwifiPkg DSC/FDF only pull UniXNU and DarwinBoot in when this is 1, so a standalone
+# `build_uefi.py -d gts9uwifi` keeps building the plain Mu-Silicium firmware.
+UNIXNU_PAYLOAD = "1"
+# 1 = vendor DXE set; 0 = Mu-Silicium + SimpleFbDxe only (bring-up fallback)
+GTS9UWIFI_VENDOR_HW = "1"
+# 0 = skip the PMIC drivers (hard reset on this board)
+GTS9UWIFI_PMIC_DXE = "1"
+# 0 = skip the vendor USB stack
+GTS9UWIFI_USB_DXE = "0"
 
 # The ramdisk of the boot image: a FAT volume with the UniXNU config, the kernel, its device tree and
 # the optional trust cache and Data seed. DarwinBoot itself lives in the firmware volume.
@@ -188,13 +195,7 @@ ipad_identity = true
 unique_chip_id = "required"          # the platform seed is not stored in any repository
 
 # Image parameters come from the Mu-Silicium device config; [bootimg.image] would override them.
-
-# The stock SM-X910 DTB already carries /reserved-memory/splash_region (0xb8000000, 0x2b00000),
-# read from /sys/firmware/fdt on the tablet. It is restated here so a DTB refresh that drops the
-# node cannot silently leave the stock ABL without a framebuffer to hand over.
-[[bootimg.dtb_node]]
-path = "/reserved-memory/splash_region"
-props = [
-  { name = "label", type = "s", value = "cont_splash_region" },
-  { name = "reg", type = "x", value = ["0x0", "0xb8000000", "0x0", "0x2b00000"] },
-]
+#
+# No [[bootimg.dtb_node]] here.  The sheng port injects /reserved-memory/splash_region because its
+# DTB lacks it; the stock SM-X910 DTB already carries the node (0xb8000000, 0x2b00000, read from
+# /sys/firmware/fdt on the tablet) and fdtput fails with FDT_ERR_EXISTS when it is declared again.

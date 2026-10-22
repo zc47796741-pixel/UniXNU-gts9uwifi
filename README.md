@@ -36,7 +36,9 @@ work — comes from `UniXNU` and is not copied here.
 | Layer | State |
 |---|---|
 | Mu-Silicium UEFI (`gts9uwifiPkg`) | builds, `SILICIUM_UEFI.fd` 3 MB |
-| Boot image packing (BootShim + FD + SM-X910 DTB) | builds, `ANDROID!` v4 |
+| UniXNU + DarwinBoot embedded in the FD | builds with `UNIXNU_PAYLOAD=1` (verified in FVMAIN) |
+| `unixnu defconfig/status/fetch/tree/build package/build firmware` | all verified on Linux |
+| Boot image packing (BootShim + FD + SM-X910 DTB) | v4 image builds and round-trips |
 | UEFI on the tablet | **not verified** |
 | XNU kernel (prelink) | not started — needs macOS |
 | Userdata / Apple userland | not started |
