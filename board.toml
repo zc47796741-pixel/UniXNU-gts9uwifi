@@ -1,21 +1,13 @@
-# Board description of the Samsung Galaxy Tab S9 Ultra (Wi-Fi) (gts9uwifi, SM-X910, SM8550-AC),
-# read by the unixnu build driver.
-#
-# STATUS: skeleton. The UEFI layer (uefi-sheng/Platforms/Samsung/gts9uwifiPkg) builds and the
-# boot image packs, but nothing below has been booted on the tablet yet. Every value marked
-# PROVEN-DEVICE has to be read off the real SM-X910 before it can be trusted; the rest is
-# inherited from UniXNU-sheng, which runs on the same SM8550 SoC.
+# Board description of the Xiaomi Pad 6S Pro (sheng, SM8550), read by the unixnu build driver.
 
 [board]
 name = "gts9uwifi"
 soc = "SM8550"
 description = "Samsung Galaxy Tab S9 Ultra (Wi-Fi)"
-kit = "gts9uwifi"                   # this repository's package/ appears as kits/gts9uwifi in the build tree
+kit = "sheng"                      # the package/ of this repository appears as kits/sheng in the build tree
 
-# Target OS image. First boot reuses the exact iPad7,1 iPadOS 17.7.11 restore image that the sheng
-# port proved out, so the kernel prelink pin and the 4 KiB XNU patches apply unchanged. Switching to
-# macOS means pointing this at a macOS restore and updating product/version/build/device_class/
-# chip_id/board_id plus the member pins; the kernel, payload, boot image and userdata steps stay.
+# The target OS image: the unchanged iPad7,1 iPadOS 17.7.11 restore image. Give --ipsw PATH to use a local file; without
+# it the remote url is read with range requests, only the members that are needed.
 [ipsw]
 url = "https://updates.cdn-apple.com/2025SpringFCS/fullrestores/122-77166/DCA6CFE8-90E9-4B92-880D-3DE171798E40/iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw"
 product = "iPad7,1"
@@ -24,17 +16,14 @@ build = "21H461"
 device_class = "j120ap"
 chip_id = 0x8011
 board_id = 12
-fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]
+fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]   # the small components
 
 [ipsw.sha256]
 "044-76040-038.dmg" = "3f99b859c9728379110b66657c7b15285bcb1925ad8b5726542e2cdcf8b1028d"
-"044-76034-038.dmg" = "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd7044f"
+"044-76034-038.dmg" = "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f"
 
-# Raw image for the userdata partition: the OS and SystemOS disk images of the IPSW behind a manifest.
-# TODO(PROVEN-DEVICE): first_lba/last_lba must be the GPT entry "userdata" on THIS tablet.
-# Read them with scripts/read-userdata-lba.sh (TWRP + adb); the values below are sheng's and will be
-# overwritten by that script. Declaring them wrong writes outside the partition, so do not build
-# the userdata image before the script has run.
+# The raw image for the userdata partition: the OS and SystemOS disk images of the IPSW behind a manifest.
+# first_lba and last_lba are the GPT entry "userdata" of LUN 0, read from the tablet.
 [userdata]
 first_lba = 0x2f3840
 last_lba = 0x3d0abfa
@@ -46,9 +35,8 @@ windows = [
 
 [kernel]
 defconfig = "gts9uwifi_defconfig"
-# First-console-boot archive set: SoC-level drivers only. The sheng PMGR power archive, the Adreno
-# stack and the mobile display provider are deliberately absent until this board has its own
-# evidence for them (see the defconfig).
+# Archive builders of the kernel step, in order. Each is a script of the build tree with its arguments. The VerifiedRoot
+# and VirtIO verified bundles are not built here; they need the volume policies of the target image.
 archives = [
   "build-corecrypto-14.py",
   "build-corecrypto-14.py --namespace",
@@ -62,7 +50,13 @@ archives = [
   "build-native-virtio-bindings.py --component NativeRamBlock --directory build/native-ram-block",
   "build-native-virtio-bindings.py --component NativeVirtioBlock",
   "build-mockfs-fixture.py",
+  "build-sheng-platform-power.py",
+  "build-boot-progress.py",
   "build-libpthread-kernel.py",
+  "build-arm-driver.py NativeAdreno",
+  "build-native-adreno-kits.py",
+  "build-native-adreno-accelerator.py",
+  "build-native-legacy-display.py",
 ]
 
 [kernel.prelink]
@@ -105,9 +99,8 @@ roots = [
   "com.apple.iokit.IOHIDEventDriver",
 ]
 
-# The UEFI layer. platform package: uefi-sheng/Platforms/Samsung/gts9uwifiPkg.
 [firmware]
-config = "gts9uwifi"
+config = "gts9uwifi"                   # Resources/Configs/sheng.toml in the Mu-Silicium checkout (--uefi)
 dsc = "Platforms/Samsung/gts9uwifiPkg/gts9uwifi.dsc"
 fd = "Build/gts9uwifiPkg/{target}_CLANGPDB/FV/SILICIUM_UEFI.fd"
 preflight = ["scripts/check-gts9uwifi.py"]
@@ -134,32 +127,22 @@ DEVICE_MODEL = "gts9uwifi"
 MEMORY_PROTECTION = "TRUE"
 SHIP_MODE = "FALSE"
 BUILDID_STRING = "gts9uwifi-research"
-# The gts9uwifiPkg DSC/FDF only pull UniXNU and DarwinBoot in when this is 1, so a standalone
-# `build_uefi.py -d gts9uwifi` keeps building the plain Mu-Silicium firmware.
-UNIXNU_PAYLOAD = "1"
-# 1 = vendor DXE set; 0 = Mu-Silicium + SimpleFbDxe only (bring-up fallback)
-GTS9UWIFI_VENDOR_HW = "1"
-# 0 = skip the PMIC drivers (hard reset on this board)
-GTS9UWIFI_PMIC_DXE = "1"
-# 0 = skip the vendor USB stack
-GTS9UWIFI_USB_DXE = "0"
 
 # The ramdisk of the boot image: a FAT volume with the UniXNU config, the kernel, its device tree and
-# the optional trust cache and Data seed. DarwinBoot itself lives in the firmware volume.
+# the optional trust cache and Data seed. The loader (DarwinBoot) is part of the firmware volume.
 [payload]
 volume = "GTS9UWIFIESP"
 size_mib = 192
 loader = "firmware"
-title = "gts9uwifi first boot: source 4K XNU to console"
-dram_size = "0x80000000"            # TODO(PROVEN-DEVICE): confirm against the SM-X910 SMEM RAM table
-panic_screen = true
-# TODO: replace with the caches of the image actually fetched; the payload step refuses others.
+title = "Boot"
+dram_size = "0x80000000"             # SMEM RAM table observed on the device
+skip_setup_tool = "scripts/seed-data-skip-setup.py"   # used by --skip-setup
+panic_screen = true                  # patch panic() screen output into the payload copy of the kernel
+# The original static/System trust caches, and the owner trust bundle built around them.
 trust_cache_sha256 = [
   "7416ca4f8377146626bb284e2133c76bee6cb4e3ee0af5d648b186235a7323a7",
   "8900d6a93d7a59ce1a872a5c081e559f4240a218f97e12d44d22dda46644d68f",
 ]
-# Kernel arguments: the generic platform/storage/diagnostic set only. No sheng-* argument is carried
-# over, because every one of them names a driver that does not exist on this board yet.
 kernel_args = [
   "-v",
   "serial=3",
@@ -172,30 +155,69 @@ kernel_args = [
   "offline-legacy-validate=1",
   "offline-legacy-transfer=1",
   "offline-legacy-cpu-present=1",
+  "offline-hid-home=1",
+  "offline-hid-input=1",
   "offline-legacy-phase=4",
+  "offline-mobile-graphics-client=1",
+  "offline-mobile-graphics-load=1",
   "offline-apfs-load=1",
   "boot-progress=2",
   "-apfs_shared_datavolume",
+  "offline-key-events=1",
   "native-ufs-root=1",
+  "sheng-pmgr=2",
   "armcpu-diagnostics=1",
+  "sheng-disable-watchdogd=1",
+  "sheng-lite=1",
+  "boot-ui-focus4=SpringBoard",
+  "sheng-smp=1",
+  "sheng-cpufreq=3",
+  "sheng-touch=4",
+  "sheng-aks=1",
+  "sheng-gpu-power=9",
+  "sheng-gpu-metal=1",
+  "sheng-fb-gpu=1",
+  "sheng-banner=0",
+  "sheng-gpu-perf=8",
+  "sheng-gpu-addon=1",
   "armcpu-spi-ipi=1",
   "-no_slto_panic",
   "ml-timeout-lock-panic-scale=40",
+  "sheng-touch-hid=1",
+  "sheng-data-persist=2",
+  "sheng-staged-apps=1",
+  "sheng-buttons=1",
+  "sheng-backlight=1",
+  "sheng-wifi=1",
+  "sheng-vsync=144",
+]
+
+# Fixups of signed text, applied by the kernel after signature validation (patches/xnu/native-text-fixup.patch); they reach it as
+# /chosen/text-fixups, not on the command line. Each is <file name>,<file offset>,<original>,<replacement>, in hex.
+text_fixups = [
+  # +[AWAttentionAwarenessConfiguration initialize] (21H461) only forces +[AWClientPreferences initialize] and deadlocks
+  # SpringBoard startup against it (ABBA between the main thread and Siri's SASMyriadController); it returns at once instead.
+  "dyld_shared_cache_arm64.15,421e8bc,28ad1bb0008544f9,c0035fd6008544f9",
+  # PosterBoardServices: PRSPosterPathURLResourceValues and PRSPosterPathFileAttributes require NSFileProtectionNone, which a Data
+  # volume without data protection never reports, so PosterBoard's data store is never viable ("Failed to migrate to Version 61
+  # from 59") and no poster, hence no wallpaper, is ever made. Both dictionaries keep only their first entry (readable / POSIX mode).
+  "dyld_shared_cache_arm64.13,1b05bec,44008052,24008052",
+  "dyld_shared_cache_arm64.13,1b05b08,44008052,24008052",
+  # BTAudioHALPlugin's factory returns NULL, so audiomxd skips it: with bluetoothd disabled (sheng-lite) the plugin reconnects to the
+  # missing com.apple.BTAudioHALPlugin.xpc in a tight loop (about 2700 times a second, millions of log lines, one core busy).
+  "BTAudioHALPlugin,38bec,ffc300d1f44f01a9,000080d2c0035fd6",
 ]
 
 [payload.adt]
 tool = "scripts/make-gts9uwifi-adt.py"
-chip_id = "207"                      # 0x207 = SM8550 v1, one of the msm-id pairs in the stock DTB
-owned_memory_size = "0x130000000"    # TODO(PROVEN-DEVICE): from the SMEM RAM table
+chip_id = "207"
+owned_memory_size = "0x130000000"
 root_match_volume_uuid = "04769D26-2CA0-4825-B443-E2E5F88300F2"
 cpu_regs = "0,0x100,0x200,0x300,0x400,0x500,0x600,0x700"
 packed_data_ramdisk = true
-persistent_data = false
+persistent_data = true               # sheng-data-persist keeps Data writes, so Data is not ephemeral storage
 ipad_identity = true
 unique_chip_id = "required"          # the platform seed is not stored in any repository
 
 # Image parameters come from the Mu-Silicium device config; [bootimg.image] would override them.
-#
-# No [[bootimg.dtb_node]] here.  The sheng port injects /reserved-memory/splash_region because its
-# DTB lacks it; the stock SM-X910 DTB already carries the node (0xb8000000, 0x2b00000, read from
-# /sys/firmware/fdt on the tablet) and fdtput fails with FDT_ERR_EXISTS when it is declared again.
+

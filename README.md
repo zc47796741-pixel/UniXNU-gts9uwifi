@@ -1,87 +1,74 @@
-# UniXNU-gts9uwifi
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+    <img alt="UniXNU" src="assets/logo-light.svg" width="200">
+  </picture>
+</p>
 
-UniXNU device repository for the **Samsung Galaxy Tab S9 Ultra (Wi-Fi)** — SM-X910, codename
-`gts9uwifi`, SM8550-AC "kalama".
+<p align="center">
+  <a href="https://unixnu.com"><img alt="Documentation" src="https://img.shields.io/badge/docs-unixnu.com-2A5BD7?logo=readthedocs&logoColor=white"></a>
+  <a href="https://t.me/unixnu"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-@unixnu-26A5E4?logo=telegram&logoColor=white"></a>
+  <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=Pubz23DOCY76nxjlGuSms2zesk4jRvas4zrXJRYk7omf7CprXbGQigLEI%2BCoYR8D&busi_data=eyJncm91cENvZGUiOiIxMTI2MTE2NzU5IiwidG9rZW4iOiJwSHJsUDN1UnN2Vi8yM210TjJRbzBIcERmcUpyOS9lb0hHVVpadWdvVFdScVpSYUFLT1YzTk5TWC9mN2xWYmtIIiwidWluIjoiMzE1MTEwOTc0MSJ9&data=_cJgr-jX9yJ2-GXwVjRN5FOhDyk5B-HAfIk5LSunbW_XkkmKqNXbpH33wzP93J0p9DI1fbjgBUrUfTVhwDcxjg&svctype=4&tempid=h5_group_info"><img alt="QQ Group" src="https://img.shields.io/badge/QQ%20Group-join-12B7F5?logo=qq&logoColor=white"></a>
+  <a href="https://x.com/unixnu"><img alt="X" src="https://img.shields.io/badge/X-@unixnu-000000?logo=x&logoColor=white"></a>
+</p>
 
-**State: skeleton / porting baseline.** The UEFI layer builds
-(`uefi-sheng/Platforms/Samsung/gts9uwifiPkg`, derived from the working `gts9wifiPkg` of the
-Tab S9 on the same SoC) and the Android boot image packs. Nothing here has booted on the tablet
-yet, and the macOS/iOS side has not been exercised at all — the kernel step needs macOS + Xcode.
+# UniXNU-sheng
 
-## What this repository is
+Device repository for the Xiaomi Pad 6S Pro (sheng, SM8550). It holds the board file, kernel defconfig, device scripts, drivers and package.
 
-The device layer of the UniXNU stack:
+🎉 **News:** The native Metal GPU driver is fully working on sheng. The render server composites the system UI through the Adreno 740, and listed processes get their own Metal devices.
 
-| File | Role |
-|---|---|
-| `board.toml` | board description: IPSW identity, userdata geometry, kernel defconfig and archive list, firmware (Mu-Silicium) description, payload and ADT parameters |
-| `configs/gts9uwifi_defconfig` | kernel configuration, `CONFIG_XNU_*` |
-| `scripts/make-gts9uwifi-adt.py` | generates the Apple-format hardware DT the kernel consumes |
-| `scripts/check-gts9uwifi.py` | firmware preflight: the DSC/FDF/config/vendor set must agree |
-| `scripts/read-userdata-lba.sh` | reads the real `userdata` GPT geometry off the tablet |
+- [Documentation](https://unixnu.com)
+- [Device page](https://unixnu.com/devices/sheng)
+- [Porting guide](https://unixnu.com/porting/)
+- [Build](https://unixnu.com/building)
 
-The generic half — build driver, UEFI boot manager, DarwinBoot, XNU patches, the 4 KiB page
-work — comes from `UniXNU` and is not copied here.
+Firmware: [uefi-sheng](https://github.com/UniXNU/uefi-sheng).
 
-## Prerequisites
+Build with the `unixnu` driver of [UniXNU](https://github.com/UniXNU/UniXNU). Clone both repositories with `--recurse-submodules`; `unixnu fetch` also updates the module submodules.
 
-* Linux with the UniXNU toolchain (see the parent project); **`build kernel` and
-  `build userdata` require macOS + Xcode**, so use a Mac or the `macOS build` GitHub Action.
-* `uefi-sheng` cloned next to this repository (`--uefi ../uefi-sheng`).
-* An iPadOS/macOS restore image; `[ipsw]` in `board.toml` is the first target.
-* The tablet with an unlocked bootloader.
+## Build
 
-## Progress
+Run these commands from the UniXNU checkout. The device repository is `../UniXNU-sheng`.
 
-| Layer | State |
-|---|---|
-| Mu-Silicium UEFI (`gts9uwifiPkg`) | builds, `SILICIUM_UEFI.fd` 3 MB |
-| UniXNU + DarwinBoot embedded in the FD | builds with `UNIXNU_PAYLOAD=1` (verified in FVMAIN) |
-| `unixnu defconfig/status/fetch/tree/build package/build firmware` | all verified on Linux |
-| Boot image packing (BootShim + FD + SM-X910 DTB) | v4 image builds and round-trips |
-| UEFI on the tablet | **not verified** |
-| XNU kernel (prelink) | not started — needs macOS |
-| Userdata / Apple userland | not started |
-
-## Device facts already established
-
-Read off the physical SM-X910, not assumed:
-
-* SoC SM8550-AC, msm-id `0x218 0x20000 / 0x207 0x20000 / 0x207 0x10000 / 0x218 0x10000`
-* board-id `0x10008 0x03` (the Tab S9 11" is `0x04` — the boards are not interchangeable)
-* stock DTB from `/sys/firmware/fdt`: model `Samsung GTS9UWIFI PROJECT (board-id,03)`
-* `reserved-memory/splash_region` = `0xb8000000` + `0x2b00000`, same window as the Tab S9
-* panel 2960×1848 (landscape), vs 2560×1600 on the Tab S9
-* partitions: `boot` 96 MiB, `abl` 4 MiB, `dtbo` 16 MiB, `uefi` 5 MiB, plus `init_boot`, `vendor_boot`
-* no fastboot: `adb reboot bootloader` lands in Samsung Download mode (Odin protocol only)
-
-## Open items
-
-1. **Vendor DXE set** — `uefi-sheng/Binaries/gts9uwifi` is currently a copy of the Tab S9 set.
-   Replace it with drivers extracted from this tablet's own `abl`/`uefi` partitions and re-test.
-2. **userdata geometry** — run `scripts/read-userdata-lba.sh`; the LBA values in `board.toml` are
-   sheng's until then, and building the userdata image against them writes outside the partition.
-3. **SMEM RAM table** — confirm `owned_memory_size` and `dram_size`.
-4. **Kernel enablement** — `CONFIG_XNU_SHENG_PMGR`, Adreno and the mobile display provider are off
-   on purpose; each needs evidence on this board before it goes back on.
-5. **macOS step** — the kernel prelink and userdata image need macOS + Xcode.
-
-## Typical commands
-
-```bash
-./unixnu defconfig gts9uwifi_defconfig -D ../UniXNU-gts9uwifi
+```sh
+./unixnu defconfig sheng_defconfig -D ../UniXNU-sheng
 ./unixnu fetch
-./unixnu build package
-./unixnu build firmware --uefi ../uefi-sheng
-./unixnu bootimg --uefi ../uefi-sheng --dtb ../uefi-sheng/Resources/DTBs/gts9uwifi.dtb
-# macOS only:
 ./unixnu ipsw fetch
 ./unixnu build kernel
+./unixnu build package
+./unixnu build firmware --uefi ../uefi-sheng
 ./unixnu build payload --unique-chip-id <hex> --trust-cache <bundle> --data-ramdisk <seed>
+./unixnu bootimg --uefi ../uefi-sheng --dtb <sheng.dtb>
 ```
 
-## Licensing
+The [device page](https://unixnu.com/devices/sheng#build) adds the userdata image and the Data seed growth commands. The platform seed, trust cache and Data seed are device inputs. Use `--owner-trust-cache <bundle>` for an owner-signed bundle.
 
-Same terms as the upstream repositories this derives from: the files here are offered under the
-BSD-2-Clause-Patent licence of UniXNU; the SM-X910 DTB and the vendor DXE binaries are Samsung's
-and Qualcomm's and are not covered by it.
+Without a Mac, run the kernel and userdata steps in the [macOS runner workflow](https://github.com/UniXNU/UniXNU/actions/workflows/macos.yml). The [build guide](https://unixnu.com/building#macos-runner) lists its inputs.
+
+## Device support
+
+The original iPadOS userland runs from the IPSW; the home screen and Settings are reached. This table records user-facing device support.
+
+| Feature | State | Notes |
+| --- | --- | --- |
+| Touch | ✅ | Novatek NT36532E |
+| Display | ✅ | |
+| UFS | ✅ | Native UFS root |
+| Wi-Fi | ❌ | |
+| Bluetooth | ❌ | |
+| Camera | ❌ | |
+| GPU | ✅ | Native Metal, GPU compositing, per-process devices and exported pipeline caches |
+| USB | ❌ | |
+| Audio | ❌ | |
+| Sensors | ❌ | |
+| Battery driver | ❌ | |
+| MiPPS | ❌ | |
+| Suspend and resume | ❌ | |
+
+✅ available, ⚠️ partial, ❌ not available. The GPU details are in the [Adreno 740 driver](https://unixnu.com/drivers/native-adreno) page.
+
+## License
+
+BSD-2-Clause-Patent. See [LICENSE](LICENSE).
